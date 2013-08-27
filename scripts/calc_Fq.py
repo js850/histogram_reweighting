@@ -1,22 +1,15 @@
 #!/usr/bin/python
-import numpy as np #to access np.exp() not built int exp
-from math import *
-#import timeseries # for timeseries analysis 
-#import commands
-#import pdb;
+import numpy as np
+#from math import *
 import pickle
 import os.path
-import histogram_reweighting2d as WHAM
 import load_data
-import getopt, sys
+import getopt
+import sys
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-#from matplotlib.pyplot import *
-#mbar = pickle.load(open("mbar.pickle","rb"))
 
-#parser = argparse.ArgumentParser(description='Combine energy and overlap data from multiple runs at different temperatures into one histogram and print F_q.')
-#parser.add_argument('-f', type=int, nargs='1', help='the number of free particles')
-#parser.parse_args()
+import histogram_reweighting.histogram_reweighting2d as WHAM
 
 def usage():
     print sys.argv[0], " [<options>] -f nfree"
@@ -180,7 +173,7 @@ for j in range((wham.nqbins)):
             e.append( wham.binenergy[i] )
             q.append( wham.binq[j] )
             log10visits2d.append( np.log10( visits2d[i,j,:].sum() ) )
-            log10n_Eq.append( wham.logn_Eq[i,j] / log(10.)  )
+            log10n_Eq.append( wham.logn_Eq[i,j] / np.log(10.)  )
 
 print len(log10visits2d)
 ##############################################################################

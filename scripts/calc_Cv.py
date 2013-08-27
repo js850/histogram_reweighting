@@ -1,23 +1,14 @@
 #!/usr/bin/python
-import numpy as np #to access np.exp() not built int exp
-#import timeseries # for timeseries analysis 
-#import commands
-#import pdb;
+import numpy as np
 import pickle
-import os.path
-#import calc_Cv_extrap4_new_utils as whamutil
-import histogram_reweighting1d as WHAM
+import os
 import load_data
-#import utils
 import getopt, sys
 import matplotlib.pyplot as plt
 #from matplotlib.backends.backend_pdf import PdfPages
 #from matplotlib.pyplot import *
-#mbar = pickle.load(open("mbar.pickle","rb"))
 
-#parser = argparse.ArgumentParser(description='Combine energy and overlap data from multiple runs at different temperatures into one histogram and print F_q.')
-#parser.add_argument('-f', type=int, nargs='1', help='the number of free particles')
-#parser.parse_args()
+import histogram_reweighting.histogram_reweighting1d as WHAM
 
 def usage():
     print sys.argv[0], " [-hF -o output_prefix -r rskip -q qcolumn -e ecolumn -E nebins -c input -T TRANGE] -f nfree"

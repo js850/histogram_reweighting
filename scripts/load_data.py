@@ -1,12 +1,5 @@
 import numpy as np 
 from numpy import log
-#import timeseries # for timeseries analysis 
-#import commands
-#import pdb;
-#import pickle
-#import calc_Cv_extrap4_new_utils as whamutil
-#import matplotlib.pyplot as plt
-#from matplotlib.pyplot import *
 
 
 def exponentialBinEnergy( emin, emax, nebins, Ebar1, sig1, Ebar2, sig2 ):

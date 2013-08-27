@@ -1,7 +1,7 @@
 import numpy as np
-from pele.potentials.potential import BasePotential
+#from pele.potentials.potential import BasePotential
 
-class WhamPotential(BasePotential):
+class WhamPotential(object):
     """
     #############################################################################
     # the idea behind this minimization procedure is as follows: 

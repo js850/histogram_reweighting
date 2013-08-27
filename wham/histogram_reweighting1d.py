@@ -55,82 +55,37 @@ class wham1d:
         #print "energy", E 
         
         #print "quenching"
-        try: 
-            from pele.optimize import mylbfgs as quench
-            ret = quench(X, self.whampot, iprint=-1, maxstep=1e4)
-        except ImportError:
-            from pele.optimize import lbfgs_scipy as quench
-            ret = quench(X, self.whampot)            
+        from wham_utils import lbfgs_scipy
+        ret = lbfgs_scipy(X, self.whampot)
+#        try: 
+#            from pele.optimize import mylbfgs as quench
+#            ret = quench(X, self.whampot, iprint=-1, maxstep=1e4)
+#        except ImportError:
+#            from pele.optimize import lbfgs_scipy as quench
+#            ret = quench(X, self.whampot)            
         #print "quench energy", ret.energy
         X = ret.coords
         
         self.logn_E = X[nreps:]
         self.w_i_final = X[:nreps]
         
-    def globalMinimization(self):
-        """
-        in experimentation i've never been able to find more than
-        one minimum
-        """
-        nreps = self.nrep
-        nbins = self.nebins
-        visitsT = (self.visits1d)
-        #print "min vis", np.min(visitsT)
-        self.logP = np.where( visitsT != 0, np.log( visitsT ), 0 )
-        #print "minlogp", np.min(self.logP)
-        self.reduced_energy = self.binenergy[np.newaxis,:] / (self.Tlist[:,np.newaxis] * self.k_B)
-        
-        self.whampot = WhamPotential(self.logP, self.reduced_energy)
-        
-        X = np.random.rand( nreps + nbins )
-        E = self.whampot.getEnergy(X)
-        print "energy", E 
-        
-        print "quenching"
-        from pele.optimize import lbfgs_scipy as quench
-        ret = quench(X, self.whampot)
-        print "quench energy", ret.energy
-        
-        from pele.basinhopping import BasinHopping
-        from pele.takestep.displace import RandomDisplacement
-        takestep = RandomDisplacement(stepsize=10)
-        takestep.useAdaptiveStep()
-        takestep.adaptive_class.f = 1.5 #i have no idea what a good stepsize should be
-        bh = BasinHopping(X, self.whampot, takestep )
-        
-        import matplotlib.pyplot as plt
-        for i in range(10):
-            bh.run(2000)
-            self.logn_E = bh.coords[nreps:]
-            cvdata = self.calc_Cv(400)
-            plt.plot(cvdata[:,0], cvdata[:,5], '-')
-        plt.show()
-            
-            
-        
-        X = bh.coords
-        self.logn_E = X[nreps:]
-        self.w_i_final = X[:nreps]
 
-#    def calc_Cv_no_wham(self):
-#        """ """
-
-    def calc_Cv_new(self, NDOF, TRANGE=None, NTEMP=100):
-        from pele.thermodynamics import dos_to_cv
-        dT = (self.Tlist[-1] - self.Tlist[0]) / NTEMP
-        Tlist = np.arange(self.Tlist[0], self.Tlist[-1], dT)
-#        print self.logn_E
-        lZ, U, U2, Cv = dos_to_cv(self.binenergy, self.logn_E, Tlist, K=NDOF)
-        cvdata = np.zeros([len(Tlist), 6])
-        cvdata[:,0] = Tlist
-        cvdata[:,1] = lZ
-        cvdata[:,2] = U # average potential energy
-        cvdata[:,3] = U2
-        cvdata[:,5] = Cv
-        
-        eavg = U + float(NDOF) / 2 * Tlist # average energy including the kinetic degrees of freedom
-        cvdata[:,4] = eavg
-        return cvdata
+#    def calc_Cv_new(self, NDOF, TRANGE=None, NTEMP=100):
+#        from pele.thermodynamics import dos_to_cv
+#        dT = (self.Tlist[-1] - self.Tlist[0]) / NTEMP
+#        Tlist = np.arange(self.Tlist[0], self.Tlist[-1], dT)
+##        print self.logn_E
+#        lZ, U, U2, Cv = dos_to_cv(self.binenergy, self.logn_E, Tlist, K=NDOF)
+#        cvdata = np.zeros([len(Tlist), 6])
+#        cvdata[:,0] = Tlist
+#        cvdata[:,1] = lZ
+#        cvdata[:,2] = U # average potential energy
+#        cvdata[:,3] = U2
+#        cvdata[:,5] = Cv
+#        
+#        eavg = U + float(NDOF) / 2 * Tlist # average energy including the kinetic degrees of freedom
+#        cvdata[:,4] = eavg
+#        return cvdata
         
 
     def calc_Cv(self, NDOF, TRANGE=None, NTEMP=100, use_log_sum=None):

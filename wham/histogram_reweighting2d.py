@@ -72,25 +72,17 @@ class wham2d(object):
         
         nvar = nbins + nreps
         X = np.random.rand(nvar)
-        print "initial energy", whampot.getEnergy(X)
-        try: 
-            from pele.optimize import mylbfgs as quench
-            ret = quench(X, whampot, iprint=10, maxstep = 1e4)
-        except ImportError:
-            from pele.optimize import lbfgs_scipy as quench
-            ret = quench(X, whampot)            
+        from wham_utils import lbfgs_scipy
+        ret = lbfgs_scipy(X, self.whampot)
+#        print "initial energy", whampot.getEnergy(X)
+#        try: 
+#            from pele.optimize import mylbfgs as quench
+#            ret = quench(X, whampot, iprint=10, maxstep = 1e4)
+#        except ImportError:
+#            from pele.optimize import lbfgs_scipy as quench
+#            ret = quench(X, whampot)            
 
         print "quenched energy", ret.energy
-        
-        global_min = False
-        if global_min:
-            from pele.basinhopping import BasinHopping
-            from pele.takestep.displace import RandomDisplacement
-            takestep = RandomDisplacement(stepsize=10.)
-            takestep.useAdaptiveStep()
-            takestep.adaptive_class.f = 2.
-            bh = BasinHopping(X, whampot, takestep)
-            bh.run(1000)
         
         
         #self.logn_Eq = zeros([nebins,nqbins], float64)

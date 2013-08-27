@@ -1,4 +1,4 @@
-this directory will contain modules related to histogram reweighting.  
+this repository will contain modules related to histogram reweighting.  
 
 Examples:
 combining energy histograms from parallel tempering runs to calculate heat

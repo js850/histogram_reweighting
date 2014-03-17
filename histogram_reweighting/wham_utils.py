@@ -74,6 +74,7 @@ def calc_Cv(logn_E, visits1d, binenergy, NDOF, Treplica, k_B, TRANGE=None, NTEMP
         #print "use_log_sum = ", use_log_sum
         pass
     
+    
 
     #put some variables in this namespace
     nrep, nebins = np.shape(visits1d)
@@ -85,12 +86,14 @@ def calc_Cv(logn_E, visits1d, binenergy, NDOF, Treplica, k_B, TRANGE=None, NTEMP
     EREF = np.min(binenergy[nz]) - 1.
 
     #now calculate partition functions, energy expectation values, and Cv
-    if TRANGE == None:
+    if TRANGE is None:
         #NTEMP = 100 # number of temperatures to calculate expectation values
         TMAX = Treplica[-1]
         TMIN = Treplica[0]
-        TINT=(TMAX-TMIN)/(NTEMP-1)
-        TRANGE = [ TMIN + i*TINT for i in range(NTEMP) ]
+        TRANGE = np.linspace(TMIN, TMAX, NTEMP)
+#        TINT=(TMAX-TMIN)/(NTEMP-1)
+#        TRANGE = [ TMIN + i*TINT for i in range(NTEMP) ]
+    NTEMP = len(TRANGE)
 
     dataout = np.zeros( [NTEMP, 6] )
     if abs((binenergy[-1] - binenergy[-2]) - (binenergy[-2] - binenergy[-3]) ) > 1e-7:
@@ -190,6 +193,8 @@ def lbfgs_scipy(coords, pot, iprint=-1, tol=1e-3, nsteps=1500):
         else:
             res.message = str(dictionary['task'])
         print res.message
+        print "    the energy is", res.energy, "the rms gradient is", np.linalg.norm(res.grad) / np.sqrt(res.grad.size), "nfev", res.nfev
+        print res.coords
     #note: if the linesearch fails the lbfgs may fail without setting warnflag.  Check
     #tolerance exactly
     if False:

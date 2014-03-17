@@ -13,9 +13,9 @@ import wham_utils
 
 
 
-class wham1d:
+class wham1d(object):
     """ class to combine 1d histograms of energy E at
-    multiple temperatures into one best estimate for the histogram
+    multiple temperatures into one best estimate for the density of states
 
     input will be:
     filenames : list of filenames where the data can be found
@@ -24,19 +24,17 @@ class wham1d:
     binenergy = zeros(nebins, float64) #lower edge of bin energy
     visits1d =  zeros([nrep,nebins], integer) #1d histograms of data
     """
-    #=============================================================================================
-    # Constructor.
-    #=============================================================================================
     def __init__(self, Tlist, binenergy, visits1d):
-
+        if visits1d.shape != (len(Tlist), len(binenergy)):
+            raise ValueError("visits1d has the wrong shape")
         #define some parameters
-        self.k_B=1.
+        self.k_B = 1.
 
         self.nrep = len(Tlist)
         self.nebins = len(binenergy)
-        self.Tlist = np.array(Tlist, dtype = np.float64)
-        self.binenergy = np.array(binenergy, dtype = np.float64)
-        self.visits1d = np.array(visits1d, dtype = np.integer)
+        self.Tlist = np.array(Tlist)
+        self.binenergy = np.array(binenergy)
+        self.visits1d = np.array(visits1d)
 
     def minimize(self):
         nreps = self.nrep
@@ -47,12 +45,13 @@ class wham1d:
         #print "minlogp", np.min(self.logP)
         self.reduced_energy = self.binenergy[np.newaxis,:] / (self.Tlist[:,np.newaxis] * self.k_B)
         
-        self.whampot = WhamPotential(self.logP, self.reduced_energy)
+        self.whampot = WhamPotential(visitsT, self.reduced_energy)
         
         
         X = np.random.rand( nreps + nbins )
         E = self.whampot.getEnergy(X)
         #print "energy", E 
+#        self.whampot.test_potential(X)
         
         #print "quenching"
         from wham_utils import lbfgs_scipy

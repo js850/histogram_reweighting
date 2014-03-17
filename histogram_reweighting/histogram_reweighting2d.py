@@ -68,12 +68,12 @@ class wham2d(object):
 
         
         from wham_potential import WhamPotential
-        whampot = WhamPotential( self.logP, reduced_energy )
+        whampot = WhamPotential(visits, reduced_energy )
         
         nvar = nbins + nreps
         X = np.random.rand(nvar)
         from wham_utils import lbfgs_scipy
-        ret = lbfgs_scipy(X, self.whampot)
+        ret = lbfgs_scipy(X, whampot)
 #        print "initial energy", whampot.getEnergy(X)
 #        try: 
 #            from pele.optimize import mylbfgs as quench

@@ -54,8 +54,8 @@ class Wham1d(object):
                                                                          self.reduced_energy)
             X = np.concatenate((offsets_estimate, log_dos_estimate))
 
-        E_init, grad = self.whampot.getEnergyGradient(X)
-        rms_init = np.linalg.norm(grad) / np.sqrt(grad.size)
+        E0, grad = self.whampot.getEnergyGradient(X)
+        rms0 = np.linalg.norm(grad) / np.sqrt(grad.size)
         
         #print "quenching"
         from wham_utils import lbfgs_scipy
@@ -70,7 +70,7 @@ class Wham1d(object):
         
         if self.verbose:
             print "chi^2 went from %g (rms %g) to %g (rms %g) in %d iterations" % (
-                E_init, rms_init, ret.energy, ret.rms, ret.nfev)
+                E0, rms0, ret.energy, ret.rms, ret.nfev)
         
         X = ret.coords
         self.logn_E = X[nreps:]

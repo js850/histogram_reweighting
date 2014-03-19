@@ -24,13 +24,14 @@ class Wham2d(object):
     #=============================================================================================
     # Constructor.
     #=============================================================================================
-    def __init__(self, Tlist, binenergy, binq, visits2d, k_B=1.):
+    def __init__(self, Tlist, binenergy, binq, visits2d, k_B=1., verbose=True):
         if visits2d.shape != (len(Tlist), len(binenergy), len(binq)):
             raise ValueError("Visits2d has the wrong shape")
     
         #define some parameters
         self.k_B = k_B
         self.LOGMIN = -1e200
+        self.verbose = verbose
     
         self.nrep = len(Tlist)
         self.nebins = len(binenergy)
@@ -63,7 +64,20 @@ class Wham2d(object):
         whampot = WhamPotential(visits, reduced_energy )
         
         nvar = nbins + nreps
-        X = np.random.rand(nvar)
+        if False:
+            X = np.random.rand(nvar)
+        else:
+            # estimate an initial guess for the offsets and density of states
+            # so the minimizer converges more rapidly
+            offsets_estimate, log_dos_estimate = wham_utils.estimate_dos(visits,
+                                                                         reduced_energy)
+            X = np.concatenate((offsets_estimate, log_dos_estimate))
+            assert X.size == nvar
+
+        E0, grad = whampot.getEnergyGradient(X)
+        rms0 = np.linalg.norm(grad) / np.sqrt(grad.size)
+
+
         from wham_utils import lbfgs_scipy
         ret = lbfgs_scipy(X, whampot)
 #        print "initial energy", whampot.getEnergy(X)
@@ -74,8 +88,10 @@ class Wham2d(object):
 #            from pele.optimize import lbfgs_scipy as quench
 #            ret = quench(X, whampot)            
 
-        print "quenched energy", ret.energy
-        
+        if self.verbose:
+            print "chi^2 went from %g (rms %g) to %g (rms %g) in %d iterations" % (
+                E0, rms0, ret.energy, ret.rms, ret.nfev)
+
         
         #self.logn_Eq = zeros([nebins,nqbins], float64)
         X = ret.coords

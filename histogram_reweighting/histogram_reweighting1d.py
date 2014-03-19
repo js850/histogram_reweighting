@@ -50,8 +50,8 @@ class Wham1d(object):
         else:
             # estimate an initial guess for the offsets and density of states
             # so the minimizer converges more rapidly
-            offsets_estimate, log_dos_estimate = wham_utils.estimate_dos(self.Tlist, self.binenergy, 
-                                                                         self.visits1d, k_B=self.k_B)
+            offsets_estimate, log_dos_estimate = wham_utils.estimate_dos(self.visits1d,
+                                                                         self.reduced_energy)
             X = np.concatenate((offsets_estimate, log_dos_estimate))
 
         E_init, grad = self.whampot.getEnergyGradient(X)

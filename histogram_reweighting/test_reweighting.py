@@ -221,7 +221,9 @@ class TestHistogramReweighting(unittest.TestCase):
         ho = HarmonicOscillator(self.d)
         self.visits = ho.make_visits(self.Tlist, self.binenergy, self.N, random=True)
         assert self.visits.shape == (len(self.Tlist), len(self.binenergy))
-        wham_utils.estimate_dos(self.Tlist, self.binenergy, self.visits)
+        self.reduced_energy = self.binenergy[np.newaxis,:] / (self.Tlist[:,np.newaxis])
+
+        wham_utils.estimate_dos(self.visits, self.visits)
             
 
 if __name__ == "__main__":

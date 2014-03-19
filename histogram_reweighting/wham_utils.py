@@ -8,14 +8,12 @@ except ImportError:
     # they changed the name from Result to OptimizeResult at some point
     from scipy.optimize import OptimizeResult as Result
 
-
-
-def dos_from_offsets(Tlist, binenergy, visits, offsets, nodata_value=0.):
-    if visits.shape != (len(Tlist), len(binenergy)):
-        raise ValueError("visits has the wrong shape")
-    log_dos_all = np.where(visits==0, 0., 
-                       np.log(visits) + binenergy[np.newaxis, :]  / Tlist[:,np.newaxis]
-                       )
+def dos_from_offsets(visits, log_dos_all, offsets, nodata_value=0.):
+#    if visits.shape != (len(Tlist), len(binenergy)):
+#        raise ValueError("visits has the wrong shape")
+#    log_dos_all = np.where(visits==0, 0., 
+#                       np.log(visits) + binenergy[np.newaxis, :]  / Tlist[:,np.newaxis]
+#                       )
     log_dos_all = log_dos_all + offsets[:,np.newaxis]
     
     ldos = np.sum(log_dos_all * visits, axis=0)
@@ -23,7 +21,7 @@ def dos_from_offsets(Tlist, binenergy, visits, offsets, nodata_value=0.):
     ldos = np.where(norm > 0, ldos / norm, nodata_value)
     return ldos
 
-def estimate_dos(Tlist, binenergy, visits, k_B=1.):
+def estimate_dos(visits, reduced_energy):
     """estimate the density of states from the histograms of bins
     
     Notes
@@ -35,14 +33,16 @@ def estimate_dos(Tlist, binenergy, visits, k_B=1.):
     
     """
     SMALL = 0.
-    Tlist = Tlist * k_B
-    if visits.shape != (len(Tlist), len(binenergy)):
-        raise ValueError("visits has the wrong shape")
-    log_dos = np.where(visits==0, SMALL, np.log(visits))
-    log_dos = log_dos + binenergy[np.newaxis, :]  / Tlist[:,np.newaxis]
+    if len(visits.shape) != 2:
+        raise ValueError("visits must have two dimensions")
+    if visits.shape != reduced_energy.shape:
+        raise ValueError("visits has a different shape from reduced_energy")
+    log_dos = np.where(visits==0, SMALL, 
+                       np.log(visits) + reduced_energy) 
     
     offsets = [0.]
-    for i in xrange(1,len(Tlist)):
+    nreps = visits.shape[0]
+    for i in xrange(1,nreps):
         # find the difference in the log density of states
         ldos_diff = log_dos[i-1,:] - log_dos[i,:]
         # weight the difference by the minimum visits in each bin
@@ -50,7 +50,7 @@ def estimate_dos(Tlist, binenergy, visits, k_B=1.):
         new_offset = np.average(ldos_diff, weights=weights)
         offsets.append( offsets[-1] + new_offset)
     offsets = np.array(offsets)
-    ldos = dos_from_offsets(Tlist, binenergy, visits, offsets)
+    ldos = dos_from_offsets(visits, log_dos, offsets)
 
     if False:
         print offsets

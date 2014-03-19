@@ -25,6 +25,34 @@ class HarmonicOscillator(object):
         Elist = x2 * T / 2
         return Elist
 
+    def make_analytic_histogram(self, N, binenergy, T):
+        assert self.d > 2
+        binenergy = np.append(binenergy, binenergy[-1] + (binenergy[-1] - binenergy[-2]))
+        ecenters = (binenergy[1:] + binenergy[:-1]) / 2
+        assert np.all(ecenters > 0)
+        logP = float(self.d-2) / 2 * np.log(ecenters) - ecenters / T
+        
+             
+        
+        # now normalize it to N
+        import scipy
+        logsumP = scipy.misc.logsumexp(logP)
+        logP = logP + np.log(N) - logsumP
+        visits = np.exp(logP)
+#        visits = np.round(visits)
+        if True:
+            e1 = np.average(ecenters, weights=visits) 
+            e2 = np.average(ecenters**2, weights=visits)
+            print "Cv from analytic histogram", (e2 - e1**2) / T**2 + float(self.d)/2
+        
+#        if True:
+#            plt.clf()
+#            plt.plot(binenergy[:-1], visits.transpose())
+#            plt.show()
+        
+        return visits 
+        
+
     def random_histogram(self, N, binenergy, T):
         Elist = self.random_energies(N, T)
     
@@ -41,12 +69,15 @@ class HarmonicOscillator(object):
             plt.plot(e, np.log(counts) + e / T )
         return counts
     
-    def random_visits(self, Tlist, binenergy, N):
+    def make_visits(self, Tlist, binenergy, N, random=True):
 #        binenergy = np.linspace(0, 40, 1000)
 #        visits = np.zeros([len(Tlist), len(binenergy)])
         visits = []
         for i, T in enumerate(Tlist):
-            counts = self.random_histogram(N, binenergy, T)
+            if random:
+                counts = self.random_histogram(N, binenergy, T)
+            else:
+                counts = self.make_analytic_histogram(N, binenergy, T)
             visits.append(counts)
 #        plt.show()
 
@@ -71,6 +102,19 @@ class HarmonicOscillator(object):
 
         
         return visits
+    
+    
+    def make_analytic_dos(self, binenergy):
+        """make a binned density of states
+        
+            dos = E**(d/2)
+        """
+        assert self.d > 2
+        binenergy = np.append(binenergy, binenergy[-1] + (binenergy[-1] - binenergy[-2]))
+        ecenters = (binenergy[1:] + binenergy[:-1]) / 2
+        assert np.all(ecenters > 0)
+        log_dos = float(self.d-2) / 2 * np.log(ecenters)
+        return log_dos
 
 
 class TestHistogramReweighting(unittest.TestCase):
@@ -87,11 +131,11 @@ class TestHistogramReweighting(unittest.TestCase):
                 1.600000000000000089e+00]
         self.Tlist = np.array(self.Tlist)
         self.binenergy = np.linspace(0, 20, 1000)
-        ho = HarmonicOscillator(self.d)
-        self.visits = ho.random_visits(self.Tlist, self.binenergy, self.N)
-        assert self.visits.shape == (len(self.Tlist), len(self.binenergy))
 
     def test1(self):
+        ho = HarmonicOscillator(self.d)
+        self.visits = ho.make_visits(self.Tlist, self.binenergy, self.N, random=True)
+        assert self.visits.shape == (len(self.Tlist), len(self.binenergy))
         visits = self.visits
         binenergy = self.binenergy
         Tlist = self.Tlist
@@ -113,13 +157,14 @@ class TestHistogramReweighting(unittest.TestCase):
 #        print cvdata
 #        print "Cv values", cvdata[:,5]
         
-        if True:
+        for cv in cvdata[:,5]:
+            self.assertAlmostEqual(cv, self.d, delta=.3)
+
+        if False:
             plt.clf()
             plt.plot(Tlist, cvdata[:,5])
             plt.show()
         
-        for cv in cvdata[:,5]:
-            self.assertAlmostEqual(cv, 3, delta=.2)
         
         
         if False:
@@ -139,15 +184,30 @@ class TestHistogramReweighting(unittest.TestCase):
             plt.plot(binenergy, np.transpose(log_nET))
             plt.plot(binenergy, wham.logn_E)
             plt.show()
-        if True:
+        if False:
             plt.clf()
             plt.plot(binenergy, wham.logn_E, 'k', lw=2)
             newlogn_E = wham_utils.dos_from_offsets(Tlist, binenergy, visits,
                                                     wham.w_i_final)
             plt.plot(binenergy, newlogn_E, '--r', lw=.5)
             plt.show()
+    
+    def test_analytic(self):
+        ho = HarmonicOscillator(self.d)
+        visits = ho.make_visits(self.Tlist, self.binenergy, self.N, random=False)
         
+        wham = Wham1d(self.Tlist, self.binenergy, visits)
+        wham.minimize()
+        cvdata = wham.calc_Cv(3, TRANGE=self.Tlist, use_log_sum=True)
+        
+        for cv in cvdata[:,5]:
+            self.assertAlmostEqual(cv, self.d, delta=.01)
+
+    
     def test2(self):
+        ho = HarmonicOscillator(self.d)
+        self.visits = ho.make_visits(self.Tlist, self.binenergy, self.N, random=True)
+        assert self.visits.shape == (len(self.Tlist), len(self.binenergy))
         wham_utils.estimate_dos(self.Tlist, self.binenergy, self.visits)
             
 

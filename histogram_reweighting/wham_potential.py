@@ -48,20 +48,14 @@ class WhamPotential(BasePotential):
         self.nreps, self.nbins = P.shape
         assert P.shape == reduced_energy.shape
         self.P = P
-        #self.reduced_energy = reduced_energy
         
         if np.any(self.P < 0):
             raise ValueError("P has negative values")
         
-        SMALL = 1e-100
-        self.logP = np.where(self.P==0, SMALL, np.log(self.P))
-        self.n_rE = self.logP + reduced_energy
+        SMALL = 0. # this number is irrelevant, as long as it's not NaN
+        self.log_n_rE = np.where(self.P==0, SMALL, 
+                                 np.log(self.P) + reduced_energy)
         
-        if False: #see how much effort is wasted
-            nallzero = len( np.where(np.abs(self.logP.sum(1)) < 1e-10 )[0])
-            print "WHAM: number of degrees of freedom", self.nreps + self.nbins
-            print "WHAM: number of irrelevant d.o.f. ", nallzero
-
     def getEnergy(self, X):
         """
         X: is the array of unknowns of length nrep + nbins
@@ -74,14 +68,7 @@ class WhamPotential(BasePotential):
         """
         wi = X[:self.nreps]
         lognF = X[self.nreps:]
-        """
-        energy = 0.
-        for irep in range(self.nreps):
-            for ibin in range(self.nbins):
-                R = lognF[ibin] - wi[irep] -( logP[irep, ibin]  + reduced_energy[irep, ibin])
-                energy += logP[irep, ibin] * R**2
-        """
-        energy = np.sum( self.P * (lognF[np.newaxis,:] - wi[:,np.newaxis] - self.n_rE)**2 )
+        energy = np.sum( self.P * (lognF[np.newaxis,:] - wi[:,np.newaxis] - self.log_n_rE)**2 )
         return energy
 
     def getEnergyGradient(self, X):
@@ -96,7 +83,7 @@ class WhamPotential(BasePotential):
         """
         wi = X[:self.nreps]
         lognF = X[self.nreps:]
-        R = lognF[np.newaxis,:] - wi[:,np.newaxis] - self.n_rE
+        R = lognF[np.newaxis,:] - wi[:,np.newaxis] - self.log_n_rE
         
         energy = np.sum( self.P * (R)**2 )
         

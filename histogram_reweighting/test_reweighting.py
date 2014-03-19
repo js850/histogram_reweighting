@@ -7,6 +7,17 @@ import matplotlib.pyplot as plt
 from histogram_reweighting1d import Wham1d
 from histogram_reweighting import wham_utils
 
+def get_temps(Tmin, Tmax, nreplicas):
+    """
+    set up the temperatures
+    distribute them exponentially
+    """
+    #dT = (Tmax - Tmin) / (nreplicas-1)
+    CTE = np.exp( np.log( Tmax / Tmin ) / (nreplicas-1) )
+    Tlist = [Tmin* CTE**i for i in range(nreplicas)]
+    return Tlist
+
+
 class HarmonicOscillator(object):
     def __init__(self, d):
         self.d = d
@@ -121,14 +132,15 @@ class TestHistogramReweighting(unittest.TestCase):
     def setUp(self):
         self.d = 3
         self.N = 100000
-        self.Tlist = [2.000000000000000111e-01,
-                2.691800385264712658e-01,
-                3.622894657055626966e-01,
-                4.876054616817901977e-01,
-                6.562682848061104357e-01,
-                8.832716109390498227e-01,
-                1.188795431309558781e+00,
-                1.600000000000000089e+00]
+        self.Tlist = get_temps(.2, 1.6, 8)
+#        self.Tlist = [2.000000000000000111e-01,
+#                2.691800385264712658e-01,
+#                3.622894657055626966e-01,
+#                4.876054616817901977e-01,
+#                6.562682848061104357e-01,
+#                8.832716109390498227e-01,
+#                1.188795431309558781e+00,
+#                1.600000000000000089e+00]
         self.Tlist = np.array(self.Tlist)
         self.binenergy = np.linspace(0, 20, 1000)
 

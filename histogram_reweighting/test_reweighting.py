@@ -133,6 +133,7 @@ class TestHistogramReweighting(unittest.TestCase):
         self.binenergy = np.linspace(0, 20, 1000)
 
     def test1(self):
+        np.random.seed(0)
         ho = HarmonicOscillator(self.d)
         self.visits = ho.make_visits(self.Tlist, self.binenergy, self.N, random=True)
         assert self.visits.shape == (len(self.Tlist), len(self.binenergy))
@@ -151,7 +152,7 @@ class TestHistogramReweighting(unittest.TestCase):
         
         wham = Wham1d(Tlist, binenergy, visits.copy())
         wham.minimize()
-        cvdata = wham.calc_Cv(3, TRANGE=Tlist, use_log_sum=True)
+        cvdata = wham.calc_Cv(3, Tlist=Tlist)
 #        print cvdata.shape
 #        print cvdata
 #        print cvdata
@@ -198,7 +199,7 @@ class TestHistogramReweighting(unittest.TestCase):
         
         wham = Wham1d(self.Tlist, self.binenergy, visits)
         wham.minimize()
-        cvdata = wham.calc_Cv(3, TRANGE=self.Tlist, use_log_sum=True)
+        cvdata = wham.calc_Cv(3, Tlist=self.Tlist)
         
         for cv in cvdata[:,5]:
             self.assertAlmostEqual(cv, self.d, delta=.01)

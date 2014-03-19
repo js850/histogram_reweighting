@@ -14,8 +14,7 @@ class TestCvCalc(unittest.TestCase):
         Tlist = np.linspace(.2, 1.6, 8)
         log_dos = ho.make_analytic_dos(binenergy)
         
-        visits = np.ones([len(Tlist), len(binenergy)]) # this is only used to see where there is no data
-        cvdata = wham_utils.calc_Cv(log_dos, visits, binenergy, d, Tlist, 1.)
+        cvdata = wham_utils.calc_Cv(Tlist, binenergy, log_dos, d)
         cv = cvdata[:,5]
         self.assertLess(np.max(np.abs(cv - d)), 0.05)
         

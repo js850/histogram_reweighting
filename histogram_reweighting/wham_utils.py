@@ -68,66 +68,26 @@ def estimate_dos(Tlist, binenergy, visits, k_B=1.):
     return offsets, ldos
 
 
-def calc_Cv(logn_E, visits1d, binenergy, NDOF, Treplica, k_B, TRANGE=None, NTEMP=100, use_log_sum = None):
-    use_log_sum = True
-#    if use_log_sum == None:
-#        try:
-#            logSumFast( np.array([.1, .2, .3]) )
-#            use_log_sum = True
-#            #print "using logsum"
-#        except ImportError:
-#            #dont use log sum unless the fast logsum is working
-#            #print "not using logsum because it's too slow.  Install scipy weave to use the fast version of logsum"
-#            use_log_sum = False
-#    else:
-#        #print "use_log_sum = ", use_log_sum
-#        pass
+def calc_Cv(Tlist, binenergy, logn_E, ndof, have_data=None, k_B=1.):
+    if have_data is not None:
+        binenergy = binenergy[have_data]
+        logn_E = logn_E[have_data]
     
-    
-
-    #put some variables in this namespace
-    nrep, nebins = np.shape(visits1d)
-    #print "nreps, nebins", nrep, nebins
-
-    nz = np.where( visits1d.sum(0) != 0)[0]
-
-    #find the ocupied bin with the minimum energy
-    EREF = np.min(binenergy[nz]) - 1.
+    nebins = len(binenergy)
 
     #now calculate partition functions, energy expectation values, and Cv
-    if TRANGE is None:
-        #NTEMP = 100 # number of temperatures to calculate expectation values
-        TMAX = Treplica[-1]
-        TMIN = Treplica[0]
-        TRANGE = np.linspace(TMIN, TMAX, NTEMP)
-#        TINT=(TMAX-TMIN)/(NTEMP-1)
-#        TRANGE = [ TMIN + i*TINT for i in range(NTEMP) ]
-    NTEMP = len(TRANGE)
-
-    dataout = np.zeros( [NTEMP, 6] )
+    dataout = np.zeros([len(Tlist), 6])
     if abs((binenergy[-1] - binenergy[-2]) - (binenergy[-2] - binenergy[-3]) ) > 1e-7:
-        print "calc_Cv: WARNING: dE is not treated correctly for exponential energy bins"
+        print "calc_Cv: WARNING: dE is not treated correctly for uneven energy bins"
 
-    for count,T in enumerate(TRANGE):
-        kBT = k_B*T
+    for count, T in enumerate(Tlist):
+        kBT = k_B * T
         #find expoffset so the exponentials don't blow up
-        dummy = logn_E[nz] - (binenergy[nz] - EREF)/kBT
-        expoffset = np.max(dummy)
-        if not use_log_sum:
-            dummy = np.exp(dummy)
-            Z0 = np.sum(dummy)
-            Z1 = np.sum( dummy *  (binenergy[nz] - EREF) )
-            Z2 = np.sum( dummy *  (binenergy[nz] - EREF)**2 )
-            lZ0 = np.log(Z0)
-            lZ1 = np.log(Z1)
-            lZ2 = np.log(Z2)
-        else:
-            lZ0 = logsumexp( dummy )
-            lZ1 = logsumexp( dummy + log(binenergy[nz] - EREF) )
-            lZ2 = logsumexp( dummy + 2.*log(binenergy[nz] - EREF) )
-            Z0 = np.exp( lZ0 )
-            Z1 = np.exp( lZ1 )
-            Z2 = np.exp( lZ2 )
+        dummy = logn_E - binenergy / kBT
+
+        lZ0 = logsumexp(dummy)
+        lZ1 = logsumexp(dummy + log(binenergy))
+        lZ2 = logsumexp(dummy + 2. * log(binenergy))
 
         i = nebins-1
         #if abs(binenergy[-1] - binenergy[-2]) > 1e-7:
@@ -137,29 +97,26 @@ def calc_Cv(logn_E, visits1d, binenergy, NDOF, Treplica, k_B, TRANGE=None, NTEMP
         else:
             dE = binenergy[i+1]-binenergy[i]
             
-        if dE/kBT < 1.0E-7:
-            ONEMEXP=-dE/kBT
+        if dE/kBT < 1e-7:
+            OneMExp = -dE/kBT
         else:
-            ONEMEXP= 1.0-np.exp(dE/kBT)
+            OneMExp = 1.0 - np.exp(dE/kBT)
 
-        Eavg = NDOF*kBT/2.0 + 1.0*(kBT + dE/ONEMEXP) + exp(lZ1-lZ0) + EREF
+        Eavg = ndof * kBT / 2.0 + kBT + dE / OneMExp + exp(lZ1-lZ0)
         
-        Cv = NDOF/2. + 1.0*(1.0 - dE**2 * exp(dE/kBT)/(ONEMEXP**2*kBT**2)) \
-            - exp(lZ1 - lZ0)**2 / kBT**2 + exp(lZ2-lZ0) / kBT**2
-            #- (Z1/(Z0*kBT))**2 + Z2/(Z0*kBT**2)
+        # correction to the Cv for finite size of bins
+        bin_correction = 1.0 - dE**2 * exp(dE / kBT) / (OneMExp**2 * kBT**2)
+        Cv = k_B * (ndof / 2. + (exp(lZ2-lZ0) - exp(lZ1 - lZ0)**2) / kBT**2
+                    + bin_correction
+                    )
         
         dataout[count,0] = T
-        dataout[count,1] = lZ0 + expoffset
-        dataout[count,2] = lZ1 + expoffset
-        dataout[count,3] = lZ2 + expoffset
+        dataout[count,1] = lZ0
+        dataout[count,2] = lZ1
+        dataout[count,3] = lZ2
         dataout[count,4] = Eavg
         dataout[count,5] = Cv
-
         
-        #np.array([kBT, Z0*np.exp(expoffset), Z1*np.exp(expoffset), Z2*np.exp(expoffset), Eavg, Cv, np.log(Z0)+expoffset, np.log(Z1)+expoffset, np.log(Z2)+expoffset]).tofile(fout," ")
-        
-        #fout.write("\n")
-
     return dataout
 
 

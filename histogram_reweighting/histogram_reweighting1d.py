@@ -77,10 +77,11 @@ class Wham1d(object):
         self.w_i_final = X[:nreps]
         
 
-    def calc_Cv(self, NDOF, TRANGE=None, NTEMP=100, use_log_sum=None):
-#        return self.calc_Cv_new(NDOF, TRANGE, NTEMP)
-        return wham_utils.calc_Cv(self.logn_E, self.visits1d, self.binenergy,
-                NDOF, self.Tlist, self.k_B, TRANGE, NTEMP, use_log_sum=use_log_sum)
-
-
+    def calc_Cv(self, ndof, Tlist=None, ntemp=100):
+        if Tlist is None:
+            Tlist = np.linspace(self.Tlist[0], self.Tlist[-1], ntemp)
+        have_data = np.where(self.visits1d.sum(0) > 0)[0]
+        return wham_utils.calc_Cv(Tlist, self.binenergy, self.logn_E, ndof,
+                                  have_data=have_data, k_B=self.k_B)
+                                  
 

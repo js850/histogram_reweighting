@@ -1,5 +1,13 @@
 import numpy as np
 from numpy import log, exp
+from scipy.misc import logsumexp
+from scipy.optimize import fmin_l_bfgs_b
+try:
+    from scipy.optimize import Result
+except ImportError:
+    # they changed the name from Result to OptimizeResult at some point
+    from scipy.optimize import OptimizeResult as Result
+
 
 
 def dos_from_offsets(Tlist, binenergy, visits, offsets, nodata_value=0.):
@@ -60,76 +68,20 @@ def estimate_dos(Tlist, binenergy, visits, k_B=1.):
     return offsets, ldos
 
 
-def logSum1(a, b):
-    """
-    return log( exp(a) + exp(b) )
-    """
-    if a > b:
-        return a + log(1.0 + exp(-a + b) )
-    else:
-        return b + log(1.0 + exp(a - b) )
-
-
-def logSum(log_terms):
-    """
-    Compute the log of a sum of terms whose logarithms are provided.
-
-    REQUIRED ARGUMENTS  
-      log_terms is the array (possibly multidimensional) containing the logs of the terms to be summed.
-
-    RETURN VALUES
-      log_sum is the log of the sum of the terms.
-    """
-    try:
-        return logSumFast(log_terms)
-    except ImportError:
-        #print "using slow logsum, install scipy weave inline blitz to speed up"
-        return logSumSlow(log_terms)
-
-def logSumSlow(log_terms):
-    log_sum = log_terms[0] 
-    for lt in log_terms[1:]:
-        if log_sum > lt:
-            log_sum = log_sum + log(1.0 + exp(-log_sum + lt) )
-        else:
-            log_sum = lt + log(1.0 + exp(log_sum - lt) )
-    # return the log sum
-    return log_sum
-
-#def logSumFort(log_terms):
-#    import _wham_utils
-#    return _wham_utils.logsum(log_terms)
-
-#def logSumFast(log_terms):
-#    """
-#    there are two options available in case the user doesn't have package scipy (as
-#    is the case on some clusters) or doesn't have f2py
-#    """
-#    try:
-#        return logSumFort(log_terms)
-#    except ImportError:
-#        return logSumWeave(log_terms)
-
-def logSumFast(log_terms):
-    lmax = np.max(log_terms)
-#    lsub = log_terms - lmax
-    result = np.log(np.sum(np.exp(log_terms - lmax))) + lmax
-    return result
-    
-
 def calc_Cv(logn_E, visits1d, binenergy, NDOF, Treplica, k_B, TRANGE=None, NTEMP=100, use_log_sum = None):
-    if use_log_sum == None:
-        try:
-            logSumFast( np.array([.1, .2, .3]) )
-            use_log_sum = True
-            #print "using logsum"
-        except ImportError:
-            #dont use log sum unless the fast logsum is working
-            #print "not using logsum because it's too slow.  Install scipy weave to use the fast version of logsum"
-            use_log_sum = False
-    else:
-        #print "use_log_sum = ", use_log_sum
-        pass
+    use_log_sum = True
+#    if use_log_sum == None:
+#        try:
+#            logSumFast( np.array([.1, .2, .3]) )
+#            use_log_sum = True
+#            #print "using logsum"
+#        except ImportError:
+#            #dont use log sum unless the fast logsum is working
+#            #print "not using logsum because it's too slow.  Install scipy weave to use the fast version of logsum"
+#            use_log_sum = False
+#    else:
+#        #print "use_log_sum = ", use_log_sum
+#        pass
     
     
 
@@ -170,9 +122,9 @@ def calc_Cv(logn_E, visits1d, binenergy, NDOF, Treplica, k_B, TRANGE=None, NTEMP
             lZ1 = np.log(Z1)
             lZ2 = np.log(Z2)
         else:
-            lZ0 = logSum( dummy )
-            lZ1 = logSum( dummy + log(binenergy[nz] - EREF) )
-            lZ2 = logSum( dummy + 2.*log(binenergy[nz] - EREF) )
+            lZ0 = logsumexp( dummy )
+            lZ1 = logsumexp( dummy + log(binenergy[nz] - EREF) )
+            lZ2 = logsumexp( dummy + 2.*log(binenergy[nz] - EREF) )
             Z0 = np.exp( lZ0 )
             Z1 = np.exp( lZ1 )
             Z2 = np.exp( lZ2 )
@@ -231,7 +183,6 @@ def lbfgs_scipy(coords, pot, iprint=-1, tol=1e-3, nsteps=1500):
         too much to mitigate this lbfgs will stop anyway, but declare failure misleadingly.  
     """
     assert hasattr(pot, "getEnergyGradient")
-    from scipy.optimize import Result, fmin_l_bfgs_b
     res = Result()
     res.coords, res.energy, dictionary = fmin_l_bfgs_b(pot.getEnergyGradient, 
             coords, iprint=iprint, pgtol=tol, maxfun=nsteps, factr=10.)

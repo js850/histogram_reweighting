@@ -4,10 +4,11 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from histogram_reweighting1d import wham1d
+from histogram_reweighting1d import Wham1d
+from histogram_reweighting import wham_utils
 
 class HarmonicOscillator(object):
-    def __init__(self, d, T):
+    def __init__(self, d):
         self.d = d
     
     def random_energy(self, T):
@@ -73,11 +74,10 @@ class HarmonicOscillator(object):
 
 
 class TestHistogramReweighting(unittest.TestCase):
-    def test_harmonic_oscilator(self):
-        d = 3
-        T = 1.6
-        N = 100000
-        Tlist = [2.000000000000000111e-01,
+    def setUp(self):
+        self.d = 3
+        self.N = 100000
+        self.Tlist = [2.000000000000000111e-01,
                 2.691800385264712658e-01,
                 3.622894657055626966e-01,
                 4.876054616817901977e-01,
@@ -85,11 +85,16 @@ class TestHistogramReweighting(unittest.TestCase):
                 8.832716109390498227e-01,
                 1.188795431309558781e+00,
                 1.600000000000000089e+00]
-        Tlist = np.array(Tlist)
-        binenergy = np.linspace(0, 20, 1000)
-        ho = HarmonicOscillator(d, T)
-        visits = ho.random_visits(Tlist, binenergy, N)
-        assert visits.shape == (len(Tlist), len(binenergy))
+        self.Tlist = np.array(self.Tlist)
+        self.binenergy = np.linspace(0, 20, 1000)
+        ho = HarmonicOscillator(self.d)
+        self.visits = ho.random_visits(self.Tlist, self.binenergy, self.N)
+        assert self.visits.shape == (len(self.Tlist), len(self.binenergy))
+
+    def test1(self):
+        visits = self.visits
+        binenergy = self.binenergy
+        Tlist = self.Tlist
         if False:
             plt.clf()
             print visits.shape, binenergy.shape, Tlist.shape
@@ -100,7 +105,7 @@ class TestHistogramReweighting(unittest.TestCase):
 #                plt.plot(binenergy, log_nE)
             plt.show()
         
-        wham = wham1d(Tlist, binenergy, visits.copy())
+        wham = Wham1d(Tlist, binenergy, visits.copy())
         wham.minimize()
         cvdata = wham.calc_Cv(3, TRANGE=Tlist, use_log_sum=True)
 #        print cvdata.shape
@@ -108,8 +113,13 @@ class TestHistogramReweighting(unittest.TestCase):
 #        print cvdata
 #        print "Cv values", cvdata[:,5]
         
+        if True:
+            plt.clf()
+            plt.plot(Tlist, cvdata[:,5])
+            plt.show()
+        
         for cv in cvdata[:,5]:
-            self.assertAlmostEqual(cv, 3, delta=.1)
+            self.assertAlmostEqual(cv, 3, delta=.2)
         
         
         if False:
@@ -126,11 +136,19 @@ class TestHistogramReweighting(unittest.TestCase):
         if False:
             plt.clf()
             log_nET = np.log(visits) + binenergy[np.newaxis, :]  / Tlist[:,np.newaxis] + wham.w_i_final[:,np.newaxis]
-            nET = visits * np.exp(binenergy[np.newaxis, :]  / Tlist[:,np.newaxis])
             plt.plot(binenergy, np.transpose(log_nET))
             plt.plot(binenergy, wham.logn_E)
             plt.show()
+        if True:
+            plt.clf()
+            plt.plot(binenergy, wham.logn_E, 'k', lw=2)
+            newlogn_E = wham_utils.dos_from_offsets(Tlist, binenergy, visits,
+                                                    wham.w_i_final)
+            plt.plot(binenergy, newlogn_E, '--r', lw=.5)
+            plt.show()
         
+    def test2(self):
+        wham_utils.estimate_dos(self.Tlist, self.binenergy, self.visits)
             
 
 if __name__ == "__main__":

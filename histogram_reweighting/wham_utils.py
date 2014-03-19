@@ -2,6 +2,63 @@ import numpy as np
 from numpy import log, exp
 
 
+def dos_from_offsets(Tlist, binenergy, visits, offsets, nodata_value=0.):
+    if visits.shape != (len(Tlist), len(binenergy)):
+        raise ValueError("visits has the wrong shape")
+    log_dos_all = np.where(visits==0, 0., 
+                       np.log(visits) + binenergy[np.newaxis, :]  / Tlist[:,np.newaxis]
+                       )
+    log_dos_all = log_dos_all + offsets[:,np.newaxis]
+    
+    ldos = np.sum(log_dos_all * visits, axis=0)
+    norm = visits.sum(0)
+    ldos = np.where(norm > 0, ldos / norm, nodata_value)
+    return ldos
+
+def estimate_dos(Tlist, binenergy, visits, k_B=1.):
+    """estimate the density of states from the histograms of bins
+    
+    Notes
+    -----
+    The density of states is proportional to visits * exp(E/T).  Therefore
+    the log density of states for each replica is related to one another by an
+    additive constant.  This function will find those offsets and produce a
+    guess for the total density of states.
+    
+    """
+    SMALL = 0.
+    Tlist = Tlist * k_B
+    if visits.shape != (len(Tlist), len(binenergy)):
+        raise ValueError("visits has the wrong shape")
+    log_dos = np.where(visits==0, SMALL, np.log(visits))
+    log_dos = log_dos + binenergy[np.newaxis, :]  / Tlist[:,np.newaxis]
+    
+    offsets = [0.]
+    for i in xrange(1,len(Tlist)):
+        # find the difference in the log density of states
+        ldos_diff = log_dos[i-1,:] - log_dos[i,:]
+        # weight the difference by the minimum visits in each bin
+        weights = np.where(visits[i-1,:] < visits[i,:], visits[i-1,:], visits[i,:])
+        new_offset = np.average(ldos_diff, weights=weights)
+        offsets.append( offsets[-1] + new_offset)
+    offsets = np.array(offsets)
+    ldos = dos_from_offsets(Tlist, binenergy, visits, offsets)
+
+    if False:
+        print offsets
+        import matplotlib.pyplot as plt
+        log_dos = np.where(visits==0, np.nan, log_dos)
+    
+        plt.clf()
+        for i in xrange(len(Tlist)):
+            print i
+            plt.plot(binenergy, log_dos[i,:] + offsets[i])
+        
+        plt.plot(binenergy, ldos, 'k', lw=2)
+        plt.show()
+    
+    return offsets, ldos
+
 
 def logSum1(a, b):
     """
@@ -194,7 +251,7 @@ def lbfgs_scipy(coords, pot, iprint=-1, tol=1e-3, nsteps=1500):
             res.message = str(dictionary['task'])
         print res.message
         print "    the energy is", res.energy, "the rms gradient is", np.linalg.norm(res.grad) / np.sqrt(res.grad.size), "nfev", res.nfev
-        print res.coords
+        print "    X: ", res.coords
     #note: if the linesearch fails the lbfgs may fail without setting warnflag.  Check
     #tolerance exactly
     if False:

@@ -69,9 +69,10 @@ def estimate_dos(Tlist, binenergy, visits, k_B=1.):
 
 
 def calc_Cv(Tlist, binenergy, logn_E, ndof, have_data=None, k_B=1.):
-    if have_data is not None:
-        binenergy = binenergy[have_data]
-        logn_E = logn_E[have_data]
+#    if have_data is not None:
+#        binenergy = binenergy[have_data]
+#        logn_E = logn_E[have_data]
+    nz = have_data
     
     nebins = len(binenergy)
 
@@ -83,11 +84,11 @@ def calc_Cv(Tlist, binenergy, logn_E, ndof, have_data=None, k_B=1.):
     for count, T in enumerate(Tlist):
         kBT = k_B * T
         #find expoffset so the exponentials don't blow up
-        dummy = logn_E - binenergy / kBT
+        dummy = logn_E[nz] - binenergy[nz] / kBT
 
         lZ0 = logsumexp(dummy)
-        lZ1 = logsumexp(dummy + log(binenergy))
-        lZ2 = logsumexp(dummy + 2. * log(binenergy))
+        lZ1 = logsumexp(dummy + log(binenergy[nz]))
+        lZ2 = logsumexp(dummy + 2. * log(binenergy[nz]))
 
         i = nebins-1
         #if abs(binenergy[-1] - binenergy[-2]) > 1e-7:
@@ -171,6 +172,3 @@ def lbfgs_scipy(coords, pot, iprint=-1, tol=1e-3, nsteps=1500):
     res.rms = res.grad.std()
     return res
 
-
-if __name__ == "__main__":
-    pass

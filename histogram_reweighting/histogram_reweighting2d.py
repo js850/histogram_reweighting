@@ -1,20 +1,15 @@
+import numpy as np
+import scipy
 from numpy import exp, log
-import numpy as np #to access np.exp() not built int exp
-#from math import *
-#import scipy.optimize
-#import timeseries # for timeseries analysis 
+
 import wham_utils
-from wham_utils import logSum, logSum1
-#import matplotlib.pyplot as plt
-#from matplotlib.pyplot import *
-#mbar = pickle.load(open("mbar.pickle","rb"))
 
 
 
 
 
 
-class wham2d(object):
+class Wham2d(object):
     """ class to combine 2d histograms of energy E and order parameter q at
     multiple temperatures into one best estimate for the histogram
   
@@ -29,11 +24,14 @@ class wham2d(object):
     #=============================================================================================
     # Constructor.
     #=============================================================================================
-    def __init__(self, Tlist, binenergy, binq, visits2d):
+    def __init__(self, Tlist, binenergy, binq, visits2d, k_B=1., verbose=True):
+        if visits2d.shape != (len(Tlist), len(binenergy), len(binq)):
+            raise ValueError("Visits2d has the wrong shape")
     
         #define some parameters
-        self.k_B=1.
+        self.k_B = k_B
         self.LOGMIN = -1e200
+        self.verbose = verbose
     
         self.nrep = len(Tlist)
         self.nebins = len(binenergy)
@@ -51,13 +49,8 @@ class wham2d(object):
         nebins = self.nebins
         nqbins = self.nqbins
         nbins = self.nebins * self.nqbins
-        #visits = np.zeros([nreps, nebins, nqbins], np.integer)
+        
         reduced_energy = np.zeros([nreps, nebins, nqbins])
-#        for k in range(self.nrep):
-#            for j in range(self.nqbins):
-#                for i in range(self.nebins):
-#                    #visits[k,i,j] = self.visits2d[i,j,k]
-#                    reduced_energy[k,i,j] = self.binenergy[i] / (self.Tlist[k]*self.k_B)
         for j in range(self.nqbins):
             reduced_energy[:,:,j] = self.binenergy[np.newaxis,:] / (self.Tlist[:,np.newaxis]*self.k_B)
                     
@@ -71,7 +64,20 @@ class wham2d(object):
         whampot = WhamPotential(visits, reduced_energy )
         
         nvar = nbins + nreps
-        X = np.random.rand(nvar)
+        if False:
+            X = np.random.rand(nvar)
+        else:
+            # estimate an initial guess for the offsets and density of states
+            # so the minimizer converges more rapidly
+            offsets_estimate, log_dos_estimate = wham_utils.estimate_dos(visits,
+                                                                         reduced_energy)
+            X = np.concatenate((offsets_estimate, log_dos_estimate))
+            assert X.size == nvar
+
+        E0, grad = whampot.getEnergyGradient(X)
+        rms0 = np.linalg.norm(grad) / np.sqrt(grad.size)
+
+
         from wham_utils import lbfgs_scipy
         ret = lbfgs_scipy(X, whampot)
 #        print "initial energy", whampot.getEnergy(X)
@@ -82,8 +88,10 @@ class wham2d(object):
 #            from pele.optimize import lbfgs_scipy as quench
 #            ret = quench(X, whampot)            
 
-        print "quenched energy", ret.energy
-        
+        if self.verbose:
+            print "chi^2 went from %g (rms %g) to %g (rms %g) in %d iterations" % (
+                E0, rms0, ret.energy, ret.rms, ret.nfev)
+
         
         #self.logn_Eq = zeros([nebins,nqbins], float64)
         X = ret.coords
@@ -152,7 +160,7 @@ class wham2d(object):
             #P_q = np.exp(logP_Eq).sum(0)
             # sum over the energy
             for j in range(nqbins):
-                logP_q[j] = logSum( logP_Eq[:,j] )
+                logP_q[j] = scipy.misc.logsumexp( logP_Eq[:,j] )
             logP_q[self.nodataq] = np.NaN
             F_q[:,n] = -self.k_B*T*logP_q[:]
             fmin = np.nanmin(F_q[:,n])
@@ -207,7 +215,7 @@ class wham2d(object):
             #P_q = np.exp(logP_Eq).sum(0)
             # sum over the energy
             for j in range(nqbins):
-                logP_q[j] = wham_utils.logSum( logP_Eq[:,j] )
+                logP_q[j] = scipy.misc.logsumexp(logP_Eq[:,j])
             logP_q[self.nodataq] = np.NaN
       
             #find mean q
@@ -217,23 +225,24 @@ class wham2d(object):
             lnorm = -1.0e30
             for i in range(0,nqbins): 
                 if not np.isnan(logP_q[i]):
-                    lnorm = wham_utils.logSum1( lnorm, logP_q[i] ) 
-                    lqavg = wham_utils.logSum1( lqavg, logP_q[i] + log(binq[i] - qmin) )
+                    lnorm = np.logaddexp(lnorm, logP_q[i]) 
+                    lqavg = np.logaddexp(lqavg, logP_q[i] + log(binq[i] - qmin))
             self.qavg[n] = exp(lqavg - lnorm) + qmin
             #print lqavg
     
-        return TRANGE,self.qavg
+        return TRANGE, self.qavg
   
   
-    def calc_Cv(self, NDOF):
-        nebins = self.nebins
+    def calc_Cv(self, ndof, Tlist=None, ntemp=100):
         visits1d = self.visits2d.sum(2)
-        logn_E = np.zeros(nebins)
-        for i in range(nebins):
-            logn_E[i] = wham_utils.logSum(self.logn_Eq[i,:])
+        have_data = np.where(visits1d.sum(0) > 0)[0]
+        logn_E = scipy.misc.logsumexp(self.logn_Eq, axis=1)
+#        logn_E = np.zeros(nebins)
+#        for i in range(nebins):
+#            logn_E[i] = scipy.misc.logsumexp(self.logn_Eq[i,:])
 
-        return wham_utils.calc_Cv(logn_E, visits1d, self.binenergy, \
-                                  NDOF, self.Tlist, self.k_B)
-
-  
+        if Tlist is None:
+            Tlist = np.linspace(self.Tlist[0], self.Tlist[-1], ntemp)
+        return wham_utils.calc_Cv(Tlist, self.binenergy, logn_E, ndof,
+                                  have_data=have_data, k_B=self.k_B)
 

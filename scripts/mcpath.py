@@ -61,22 +61,32 @@ def main():
     lprob_offset = np.where(visits > 0, lprob_offset, np.nan)
     lprob = np.where(visits > 0, lprob, np.nan)
     
-    plt.subplot(3,1,1)
+    plt.subplot(2,1,1)
     plt.title("log probability (with an offset applied to make neighboring regions overlap)")
     for i in xrange(nreplicas):
         plt.plot(s,lprob_offset[i,:], 'x-')
         
-    plt.subplot(3,1,2)
+    plt.subplot(2,1,2)
     plt.title("log probability (individually normalized, but not offset)")
     for i in xrange(nreplicas):
         plt.plot(s,lprob[i,:], 'x-')
+    
+    if True:
+        plt.subplot(3,1,3)
+        plt.title("probabilites (offset)")
+        p = np.where(visits > 0, np.exp(lprob_offset), np.nan)
+        for i in xrange(nreplicas):
+            plt.plot(s, p[i,:], 'x-')
         
-    plt.subplot(3,1,3)
-    plt.title("log visits (individually normalized, but not offset)")
+    else:
+        plt.subplot(3,1,3)
+        plt.title("log visits (individually normalized, but not offset)")
+        for i in xrange(nreplicas):
+            plt.plot(s,lvis[i,:], 'x-')
+    
     plt.xlabel("accumulated path length")
-    for i in xrange(nreplicas):
-        plt.plot(s,lvis[i,:], 'x-')
     plt.show()
+    
     
     
 

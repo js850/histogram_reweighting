@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from histogram_reweighting import wham_utils
+from histogram_reweighting import wham_potential
+from pele.optimize import lbfgs_py
 
 
 def get_n_replicas(prefix="mcpath.f.block"):
@@ -25,6 +27,22 @@ def estimate_offsets(lprob, visits):
         offsets.append( offsets[-1] + new_offset)
     return offsets
 
+
+def optimize(visits, P):
+    nreps, nbins = visits.shape
+    P = P.copy()
+    P = np.where(visits > 0, P, 0.)
+    energies = np.zeros(P.shape)
+    whampot = wham_potential.WhamPotential(P, energies)
+    
+    
+    print "minimizing whampot"
+    x0 = np.random.rand(nreps + nbins)
+    print "initial energy", whampot.getEnergy(x0)
+    ret = lbfgs_py(x0, whampot, iprint=1, tol=1e-7)
+    offsets = ret.coords[:nreps]
+    lp = ret.coords[nreps:]
+    return lp
 
 def main():
     prefix = "mcpath.f.block"
@@ -58,33 +76,42 @@ def main():
     for i in xrange(nreplicas):
         lprob_offset[i,:] += offsets[i]
         
+    lpwham = optimize(probabilities, visits)
+        
     lprob_offset = np.where(visits > 0, lprob_offset, np.nan)
     lprob = np.where(visits > 0, lprob, np.nan)
     
-    plt.subplot(2,1,1)
+    plt.figure(figsize=(8,10))
+    plt.subplot(3,1,1)
     plt.title("log probability (with an offset applied to make neighboring regions overlap)")
     for i in xrange(nreplicas):
         plt.plot(s,lprob_offset[i,:], 'x-')
+    plt.plot(s, lpwham)
         
-    plt.subplot(2,1,2)
+    plt.subplot(3,1,2)
     plt.title("log probability (individually normalized, but not offset)")
     for i in xrange(nreplicas):
         plt.plot(s,lprob[i,:], 'x-')
     
-    if True:
+    if False:
         plt.subplot(3,1,3)
         plt.title("probabilites (offset)")
         p = np.where(visits > 0, np.exp(lprob_offset), np.nan)
         for i in xrange(nreplicas):
             plt.plot(s, p[i,:], 'x-')
-        
-    else:
+      
+    elif False:
         plt.subplot(3,1,3)
         plt.title("log visits (individually normalized, but not offset)")
         for i in xrange(nreplicas):
             plt.plot(s,lvis[i,:], 'x-')
     
+    else:
+        plt.subplot(3,1,3)
+        plt.plot(s, lpwham)
+    
     plt.xlabel("accumulated path length")
+    plt.savefig("probabilities.pdf", type="pdf")
     plt.show()
     
     

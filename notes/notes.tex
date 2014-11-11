@@ -1,0 +1,195 @@
+\documentclass[a4paper]{article}
+
+\usepackage[top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+%\bibliographystyle{naturemagurl}
+\bibliographystyle{plainnat}
+
+
+\title{Notes on histogram reweighting}
+\author{Jacob Stevenson}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+
+\section{parallel tempering}
+
+In this case the windows (labelled $r$) each have temperature $T_r$.
+A histogram of observed data is recorded where $N_{ir}$ is the number of times
+replica $r$ was in energy bin $i$ and $N_r = \sum_i N_{ir}$ and $N = \sum_{ir}  N_{ir}$.
+We know that the probability of being in energy bin $i$ given a temperature is
+the product of the density of states $g_i$ and the Boltzmann weight.
+\begin{equation}
+p(i | r) = g_i e^{- E_i / T_r} / Z_{r}
+\end{equation}
+where $Z_{r}$ is the unknown normalization constant.
+
+We ultimately want to find the values of $g_i$ and $Z_{r}$ that make $p(i|r)$ as 
+close as possible to $N_{ri} / N$.  This can be done by making the ratio of the probabilities
+as close to one as possible, or equivalently by minimizing the squared deviation of the logarithms for each bin.
+\begin{equation}
+R_{ri}^2 = \left[ \log(g_i) - \log(Z_{r}) - E_i/T_r - \log(N_{ir} / N_r) \right]^2
+\end{equation}
+We combine these together weighted by $N_{ri}$ so that the bins with the most observations contribute the most to the 
+estimation of $g_i$ and $Z_r$.
+\begin{equation}
+\chi^2 = \sum_r \sum_i N_{ir} R_{ij}^2 = \sum_{ir} N_{ir} \left( \log \frac{g_{i} e^{- E_i/T_r}}{Z_r} - \log \frac{N_{ir}}{N_r} \right)^2
+\end{equation}
+We find the $g_i$ and $Z_r$ that minimize $\chi$.
+
+\section{umbrella sampling}
+
+In this situation we do simulations (indexed with $r$) each weighted by a constraint function $U_r(Q)$ where
+$Q$ is some order parameter.  The constraint, for example, could be a squared exponential decay 
+$U_r(Q) = e^{ -\alpha (Q - \hat{Q}_r )^2}$.  
+Again, we record a histogram $N_{iqr}$ where the order parameter is indexed by $q$ and
+the energy is indexed by $i$.
+Again, we can decompose the joint probability of begin in energy bin $i$ and order parameter bin $q$ into
+\begin{equation}
+p(i,q|r) = g_{iq} e^{-E_i / T_r} U_r(Q_q) / Z_{r}
+\end{equation}
+where $g_{iq}$ is the unweighted density of states with energy in bin $i$ and order parameter in bin $q$.
+As in above, we want $p(i,q|r)$ to be as close as possible to $N_{iqr}/N_r$, so we minimize
+\begin{equation}
+\chi^2 = \sum_{iqr} N_{iqr} \left( \log \frac{g_{iq} e^{- E_i/T_r} U_r(Q_q) }{Z_r} - \log \frac{N_{iqr}}{N_r} \right)^2
+\end{equation}
+
+The unweighted probability as a function of the order parameter evaluated at temperature $T$ is then obtained by summing over the energy bins
+\begin{equation}
+p_q \propto \sum_i g_{iq} e^{- E_i/T}
+\end{equation}
+$T$ does not have to be one of the replica temperatures $T_r$, but for accurate results it shouldn't be far from the temperatures studies. 
+The free energy is simply $- k_B T \log(p_q)$.  
+
+\section{constant temperature umbrella sampling}
+
+If the simulations are all done at the same temperature $T_r = T$, then we can sum out the dependence on $i$
+analytically
+\begin{equation}
+p(q|r) = \sum_i p(i,q|r) = p_q U_r(Q_q) / Z_{r}
+\end{equation}
+In this case the histogram does not need to include dependence on the energy, and the minimization becomes.
+\begin{equation}
+\chi^2 = \sum_{qr} N_{qr} \left( \log \frac{p_{q} U_r(Q_q) }{Z_r} - \log \frac{N_{qr}}{N_r} \right)^2
+\end{equation}
+
+\section{biasing the energy and order parameter}
+
+\subsection{the wrong way}
+
+In this case our bias function $U_r(Q_q, E_i)$ is dependent on the bin $i$ as well as the bin $q$.
+\begin{equation}
+p(i,q|r) = g_{iq} e^{-E_i / T} U_r(E_i, Q_q) / Z_{r}
+\end{equation}
+Now, even though all the temperatures are the same, summing out the 
+dependence on $i$ becomes more complicated.
+\begin{equation}
+p(q|r) = \tilde{g_{q}} / Z_{r}
+\end{equation}
+where
+\begin{equation}
+\tilde{g_q} = \sum_i g_{iq} e^{-E_i / T} U_r(E_i, Q_q) \propto \sum_i p(i,q) U_r(E_i, Q_q) = p(q) \sum_i p(i|q) U_r(E_i, Q_q)
+\end{equation}
+Maybe if we sum out $i$ we don't need to record the histogram as a function of $i$, but we must
+instead record $\sum_i p(i|q) U_r(E_i, Q_q)$ which is the \emph{unbiased} average of the bias function in each $q$ bin.
+During the trajectory we draw sample configurations $X_j$ from the \emph{biased} probability distribution.
+In order to do un-biased average we need to weight each configuration by $U_r^{-1}(E(X_j), Q(X_j))$
+\begin{equation}
+\sum_i p(i|q) U_r(E_i, Q_q) = \sum_{j\in q} \frac{U_r(E(X_j), Q(X_j))}{U_r(E(X_j), Q(X_j))} = N_{qr}
+\end{equation}
+But this doesn't really help us.
+
+\subsection{the right way}
+
+Instead of recording the histogram of visits, we instead record the histogram of
+\begin{equation}
+\hat{p}_{qr} = \frac{\sum_{j\in q} U_r^{-1}(E(X_j), Q(X_j))}{\sum_{j} U_r^{-1}(E(X_j), Q(X_j))}
+\end{equation}
+Since the configurations $X_j$ are drawn from the biased distribution with binned probability density function $p(i,q) U_r(E(X_j), Q(X_j)$,
+the inverse bias term above sample average cancels and $\hat{p}_{qr}$ can be interpreted as the \emph{unbiased} probability of being in bin $q$ in simulation $r$.
+
+So, we record $\hat{p}_{qr}$ during the trajectory and compare it to
+\begin{equation}
+p(q|r) = p_{q} / Z_{r}
+\end{equation}
+As before, we find $p_q$ and $Z_r$ which minimizes
+\begin{equation}
+\chi^2 = \sum_{qr} p_{qr} \left( \log \frac{p_{q}}{Z_r} - \log p_{qr} \right)^2
+\end{equation}
+
+
+\section{two order parameters with bias on one of them}
+
+In this case we have two order parameters $S(x)$ and $Q(x)$ which, when binned,
+are indexed by $s$ and $q$.  We simulate using a bias function $U_r(E, S)$.
+The simple counts refer to the probability distribution
+\begin{equation}
+p(i,s,q|r) = g_{isq} e^{-E_i / T} U_r(E_i, S_s) / Z_{r}
+\end{equation}
+What we want to determine is
+\begin{equation}
+p_q = \sum_{is} p(i,s,q) \propto \sum_{is} g_{isq} e^{-E_i / T}
+\end{equation}
+Computing this via population average during a trajectory we have
+\begin{equation}
+\hat{p}_{qr} = \frac{\sum_{j\in q} U_r^{-1}(E(X_j), S(X_j))}{\sum_{j} U_r^{-1}(E(X_j), S(X_j))}
+\end{equation}
+which, if accumulated during the trajectories can be used to solve for $p_q$ as described above.
+
+\subsection{if the bias is a hard constraint}
+
+If the bias is a hard constraint, e.g. $U_r(E(X), S(X)) = \Theta(S(X)-S_{r}^{min}) \Theta(S_{r}^{max}-S(x))$, the above might not work.
+This is because the trajectories are not ergodic, and some configurations necessary for the accurate calculation of $\hat{p}_{qr}$
+will never be sampled.
+
+\section{maximum likelihood formulation}
+
+Here we use the parallel tempering example where for each trajectory we draw configurations
+from the probability distribution
+\begin{equation}
+p_r(x) = e^{- E(x) / T_r} / Z_{r}
+\end{equation}
+with 
+\begin{equation}
+Z_r = \int p_r(x) dx
+\end{equation}
+In this formulation we are not doing any binning.  $g(E(x))$ is begin left as a function, but in
+order to use all the information from all the trajectories we need to know the normalization constants
+$Z_r$.  So we will use maximum likelihood to solve for those.
+If a configuration is observed in trajectory $r_1$ then we can use it in trajectory $r_2$ if we re-weight 
+the observation by $p_{r_2}(x) / p_{r_1}(x)$
+
+The full likelihood is then
+\begin{equation}
+L = \prod_{r_1} \prod_{j=1}^{N_{r_1}} \prod_{r_2} p_{r_2} (x_j) / p_{r_1} (x_j) 
+= \prod_{r_1} \prod_{j=1}^{N_{r_1}} \prod_{r_2} \frac{q_{r_2}(x_j) Z_{r_2}^{-1}}{q_{r_1}(x_j) Z_{r_1}^{-1}} 
+\end{equation}
+If we associate each configuration $x_j$ with the simulation at which it was sampled $q_j$, then the above can
+be simplified
+\begin{equation}
+L = \prod_{j=1}^{N_{x}} \prod_{r} \frac{q_{r}(x_j) Z_{r}^{-1}}{q_{j}(x_j) Z_{j}^{-1}} 
+\end{equation}
+
+\subsection{this section is wrong}
+
+\begin{equation}
+L = \prod_{j=1}^{N_x} \prod_{r} g(E(x_j)) e^{-E(x_j) / T_{j} } / Z_{r}
+\end{equation}
+where $N_{x} = \sum_r N_r$ is the total number of configurations. 
+\begin{equation}
+\log L =
+\sum_{r} \sum_{j=1}^{N_{x}} ( \log g(E(x_j)) -E(x_j) / T_{j} - \log Z_{r} )
+\end{equation}
+\begin{equation}
+\log L =
+N_R \sum_{j=1}^{N_{x}} ( \log g(E(x_j)) -E(x_j) / T_{j})
+- N_{x} \sum_{r} \log Z_{r}
+\end{equation}
+where $N_R$ is the number of replicas (number of different simulations) and 
+
+
+\end{document}

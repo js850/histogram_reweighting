@@ -157,7 +157,7 @@ with
 \begin{equation}
 Z_r = \int p_r(x) dx
 \end{equation}
-In this formulation we are not doing any binning.  $g(E(x))$ is begin left as a function, but in
+In this formulation we are not doing any binning but in
 order to use all the information from all the trajectories we need to know the normalization constants
 $Z_r$.  So we will use maximum likelihood to solve for those.
 If a configuration is observed in trajectory $r_1$ then we can use it in trajectory $r_2$ if we re-weight 
@@ -168,10 +168,39 @@ The full likelihood is then
 L = \prod_{r_1} \prod_{j=1}^{N_{r_1}} \prod_{r_2} p_{r_2} (x_j) / p_{r_1} (x_j) 
 = \prod_{r_1} \prod_{j=1}^{N_{r_1}} \prod_{r_2} \frac{q_{r_2}(x_j) Z_{r_2}^{-1}}{q_{r_1}(x_j) Z_{r_1}^{-1}} 
 \end{equation}
-If we associate each configuration $x_j$ with the simulation at which it was sampled $q_j$, then the above can
+If we associate each configuration $x_j$ with the distribution from which it was sampled $p_j$, then the above can
 be simplified
 \begin{equation}
-L = \prod_{j=1}^{N_{x}} \prod_{r} \frac{q_{r}(x_j) Z_{r}^{-1}}{q_{j}(x_j) Z_{j}^{-1}} 
+L = \prod_{j=1}^{N_{x}} \prod_{r} \frac{p_{r}(x_j) }{p_{j}(x_j)} 
+\end{equation}
+where $N_{x} = \sum_r N_r$ is the total number of configurations. 
+\begin{equation}
+L = \prod_{j=1}^{N_{x}} \frac{\prod_{r} p_{r}(x_j) }{p_{j}^{K} (x_j)} 
+\end{equation}
+The logarithm becomes
+\begin{equation}
+\log L = \sum_{j=1}^{N_{x}} ( \sum_{r} \log p_{r}(x_j)  - K \log p_{j} (x_j) )
+\end{equation}
+\begin{equation}
+\log L = \sum_{j=1}^{N_{x}} \sum_{r} ( \log p_{r}(x_j)  - \log p_{j} (x_j) )
+\end{equation}
+\begin{equation}
+\log L = \sum_{j=1}^{N_{x}} \sum_{r} \left(  -E(x_j) \left( \frac{1}{T_r} - \frac{1}{T_j} \right)  - \log \frac{Z_r}{Z_j} \right)
+\end{equation}
+
+\subsection{averages}
+
+Combining all the probability distributions into one we have
+\begin{equation}
+p(x) = \frac{1}{N_x}  \sum_{r=1}^{R} N_r p_r(x) 
+\end{equation}
+The above is the general distribution from which all the configurations were drawn, so to do a sample
+average at a generic temperature T we weight each configuration by $p^{-1} (x) e^{-E(x)/T}$
+
+To compute averages of observables at temperature $T$ using all the data we coule use
+\begin{equation}
+\langle A(x) \rangle = \frac{ \sum_{j=1}^{N_x} A(x_j) e^{-E(x_j) / T} p^{-1} (x_j) }
+{ \sum_{j=1}^{N_x} e^{-E(x_j) / T} p^{-1} (x_j) }
 \end{equation}
 
 \subsection{this section is wrong}

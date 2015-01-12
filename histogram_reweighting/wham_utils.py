@@ -9,11 +9,6 @@ except ImportError:
     from scipy.optimize import OptimizeResult as Result
 
 def dos_from_offsets(visits, log_dos_all, offsets, nodata_value=0.):
-#    if visits.shape != (len(Tlist), len(binenergy)):
-#        raise ValueError("visits has the wrong shape")
-#    log_dos_all = np.where(visits==0, 0., 
-#                       np.log(visits) + binenergy[np.newaxis, :]  / Tlist[:,np.newaxis]
-#                       )
     log_dos_all = log_dos_all + offsets[:,np.newaxis]
     
     ldos = np.sum(log_dos_all * visits, axis=0)
@@ -52,58 +47,65 @@ def estimate_dos(visits, reduced_energy):
     offsets = np.array(offsets)
     ldos = dos_from_offsets(visits, log_dos, offsets)
 
-    if False:
-        print offsets
-        import matplotlib.pyplot as plt
-        log_dos = np.where(visits==0, np.nan, log_dos)
-    
-        plt.clf()
-        for i in xrange(len(Tlist)):
-            print i
-            plt.plot(binenergy, log_dos[i,:] + offsets[i])
-        
-        plt.plot(binenergy, ldos, 'k', lw=2)
-        plt.show()
-    
     return offsets, ldos
 
 
 def calc_Cv(Tlist, binenergy, logn_E, ndof, have_data=None, k_B=1.):
-#    if have_data is not None:
-#        binenergy = binenergy[have_data]
-#        logn_E = logn_E[have_data]
+    """compute the heat capacity and other data from the density of states
+    
+    Parameters
+    ----------
+    Tlist : list
+        list of temperatures at which to do the computations
+    binenergy : array
+        The lower edge of the bins for the density of states data
+    logn_E : numpy array
+        the binned density of states.
+    ndof : int
+        number of degrees of freedom
+    have_data : numpy array
+        array of indices where data is available.  If have_data is None 
+        then all data is assumed good
+    k_B : float
+        Boltzmann's constant.  Conversion factor between temperature and energy
+    
+    """
     nz = have_data
     
+    assert(not np.any(np.isnan(logn_E[nz])))
+    assert(not np.any(np.isnan(binenergy[nz])))
+    
+    Ebin_min = binenergy[nz].min() - 1.
     nebins = len(binenergy)
 
-    #now calculate partition functions, energy expectation values, and Cv
+    # now calculate partition functions, energy expectation values, and Cv
     dataout = np.zeros([len(Tlist), 6])
     if abs((binenergy[-1] - binenergy[-2]) - (binenergy[-2] - binenergy[-3]) ) > 1e-7:
         print "calc_Cv: WARNING: dE is not treated correctly for uneven energy bins"
 
     for count, T in enumerate(Tlist):
         kBT = k_B * T
-        #find expoffset so the exponentials don't blow up
+        # find expoffset so the exponentials don't blow up
         dummy = logn_E[nz] - binenergy[nz] / kBT
 
         lZ0 = logsumexp(dummy)
-        lZ1 = logsumexp(dummy + log(binenergy[nz]))
-        lZ2 = logsumexp(dummy + 2. * log(binenergy[nz]))
+        lZ1 = logsumexp(dummy + log(binenergy[nz] - Ebin_min))
+        lZ2 = logsumexp(dummy + 2. * log(binenergy[nz] - Ebin_min))
 
         i = nebins-1
         #if abs(binenergy[-1] - binenergy[-2]) > 1e-7:
         #    print "calc_Cv: WARNING: dE is not treated correctly for exponential bins"
         if i == nebins-1:
-            dE = binenergy[i]-binenergy[i-1]
+            dE = binenergy[i] - binenergy[i-1]
         else:
-            dE = binenergy[i+1]-binenergy[i]
+            dE = binenergy[i+1] - binenergy[i]
             
         if dE/kBT < 1e-7:
             OneMExp = -dE/kBT
         else:
             OneMExp = 1.0 - np.exp(dE/kBT)
 
-        Eavg = ndof * kBT / 2.0 + kBT + dE / OneMExp + exp(lZ1-lZ0)
+        Eavg = ndof * kBT / 2.0 + kBT + dE / OneMExp + exp(lZ1-lZ0) + Ebin_min
         
         # correction to the Cv for finite size of bins
         bin_correction = 1.0 - dE**2 * exp(dE / kBT) / (OneMExp**2 * kBT**2)
@@ -121,7 +123,7 @@ def calc_Cv(Tlist, binenergy, logn_E, ndof, have_data=None, k_B=1.):
     return dataout
 
 
-def lbfgs_scipy(coords, pot, iprint=-1, tol=1e-3, nsteps=1500):
+def lbfgs_scipy(coords, pot, iprint=-1, tol=1e-3, nsteps=10000):
     """
     a wrapper function for lbfgs routine in scipy
     

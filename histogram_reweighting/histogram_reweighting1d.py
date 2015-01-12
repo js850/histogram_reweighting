@@ -57,15 +57,16 @@ class Wham1d(object):
         E0, grad = self.whampot.getEnergyGradient(X)
         rms0 = np.linalg.norm(grad) / np.sqrt(grad.size)
         
-        #print "quenching"
-        from wham_utils import lbfgs_scipy
-        ret = lbfgs_scipy(X, self.whampot)
-#        try: 
-#            from pele.optimize import mylbfgs as quench
-#            ret = quench(X, self.whampot, iprint=-1, maxstep=1e4)
-#        except ImportError:
-#            from pele.optimize import lbfgs_scipy as quench
-#            ret = quench(X, self.whampot)            
+        try:
+            from pele.optimize import lbfgs_cpp as quench
+            if self.verbose:
+                print "minimizing with pele lbfgs"
+            ret = quench(X, self.whampot, tol=1e-3, maxstep=1e4, nsteps=10000)
+        except ImportError:
+            from wham_utils import lbfgs_scipy
+            if self.verbose:
+                print "minimizing with scipy lbfgs"
+            ret = lbfgs_scipy(X, self.whampot, tol=1e-3, nsteps=10000)
         #print "quench energy", ret.energy
         
         if self.verbose:

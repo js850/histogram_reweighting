@@ -23,7 +23,7 @@ def usage():
     print '  -e ecolumn       : which column to get the energy data from'
     print '  -E nebins        : number of energy bins (=300)'
     print '  -T TRANGE        : set TRANGE for the calculation of Cv.  '
-    print '                     TRANGE should have the format "Tmin Tmax numT" (not implemented)'
+    print '                     TRANGE should have the format "Tmin Tmax numT"'
 
 usepkl=True
 nfree=1;
@@ -111,7 +111,7 @@ if not usepkl or not os.path.isfile(pklname):
     visits1d = load_data.binData1d(binenergy1, datalist)
     #visits1d = np.transpose(visits1d)
 
-    wham = WHAM.wham1d(Tlist, binenergy1[:-1], visits1d)
+    wham = WHAM.Wham1d(Tlist, binenergy1[:-1], visits1d)
 
     wham.minimize()
     #wham.globalMinimization()
@@ -141,7 +141,7 @@ with open(fname,"w") as fout:
     plt.xlabel("T")
     plt.ylabel("Cv")
     plt.plot(cvdata[:,0], cvdata[:,5], "-")
-    plt.savefig(fout)
+    plt.savefig(fout, format="pdf")
 
 
     
